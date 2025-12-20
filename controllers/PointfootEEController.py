@@ -149,7 +149,6 @@ class PointfootEEController:
             self.obs_history_deque.append(np.zeros(self.observations_size))
         self.obs_history = np.zeros(self.obs_history_length * self.observations_size)
         self.actions = np.zeros(self.actions_size)
-        self.observations = np.zeros(self.observations_size)
         self.last_actions = np.zeros(self.actions_size)
         self.commands = np.zeros(self.commands_size)  # command to the robot (e.g., velocity, rotation)
         self.scaled_commands = np.zeros(self.commands_size)
@@ -264,11 +263,9 @@ class PointfootEEController:
         if self.gait_time >= (self.gait_period - dt/2.0):
             self.gait_time = 0.0
         self.phi = self.gait_time / self.gait_period
-        print(f"gait_time: {self.gait_time}, phi: {self.phi}")
         for i in range(2):
             self.clock_input[i] = np.sin(2.0 * np.pi * (self.phi + self.theta[i]))
             self.clock_input[i + 2] = np.cos(2.0 * np.pi * (self.phi + self.theta[i]))
-        print(f"clock_input: {self.clock_input}")
 
     def compute_observation(self):
         # Convert IMU orientation from quaternion to Euler angles (ZYX convention)
@@ -331,13 +328,6 @@ class PointfootEEController:
         # Flatten the deque into a single observation history array
         self.obs_history = np.concatenate(list(self.obs_history_deque), axis=0)
 
-        # Clip the observation values to within the specified limits for stability
-        self.observations = np.clip(
-            obs, 
-            -self.rl_cfg['clip_scales']['clip_observations'],  # Lower limit for clipping
-            self.rl_cfg['clip_scales']['clip_observations']  # Upper limit for clipping
-        )
-
     def compute_actions(self):
         """
         Computes the actions based on the current observations using the policy session.
@@ -383,10 +373,10 @@ class PointfootEEController:
             self.mode = "DAMPING"
         elif self.joystick.button[KeyMap.L1].pressed and self.joystick.button[KeyMap.B].on_press:
             print(f"L1 + B: SIT mode...")
-            self.mode = "SIT"
             self.robot_state_tmp = copy.deepcopy(self.robot_state)
             self.sit_initial_joint_angles = np.array(self.robot_state_tmp.q)
             self.sit_percent = 0.0
+            self.mode = "SIT"
         elif self.joystick.button[KeyMap.L1].pressed and self.joystick.button[KeyMap.A].on_press:
             print(f"L1 + A: WALK mode...")
             self.gait_time = self.phi = 0.0
